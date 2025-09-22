@@ -21,6 +21,7 @@ export default function Navbar() {
             <nav className="hidden sm:flex items-center gap-4 text-white/70 text-sm">
               <NavLink to="/" className={({isActive})=> isActive? 'text-white' : 'hover:text-white'}>Home</NavLink>
               <NavLink to="/challenges" className={({isActive})=> isActive? 'text-white' : 'hover:text-white'}>Challenges</NavLink>
+              <NavLink to="/profile" className={({isActive})=> isActive? 'text-white' : 'hover:text-white'}>Profile</NavLink>
             </nav>
           </div>
           <div className="flex items-center gap-3"><WalletConnectButton /></div>

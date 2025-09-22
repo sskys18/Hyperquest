@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import TierBadge from './TierBadge'
 
+const TIER_BG = {
+  degen: 'conic-gradient(from 0deg, var(--primary), var(--accent), var(--highlight), var(--primary))',
+  gold: 'radial-gradient(circle at 30% 30%, #FFE680, #FFD34D 40%, #FFA500 100%)',
+  silver: 'radial-gradient(circle at 30% 30%, #F0F0F0, #C0C0C0 45%, #8F8F8F 100%)',
+  bronze: 'radial-gradient(circle at 30% 30%, #E6B17A, #CD7F32 45%, #8C5A22 100%)'
+}
+
 export default function AllChallengesList({ items }) {
   const [open, setOpen] = useState({})
 
@@ -21,7 +28,9 @@ export default function AllChallengesList({ items }) {
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-lg border border-white/10"
-                     style={{background:'conic-gradient(from 0deg, var(--primary), var(--accent), var(--highlight), var(--primary))'}} />
+                     style={{
+                       background: TIER_BG[c.tiers[c.tiers.length - 1]] || 'linear-gradient(180deg, #0e1620, #0b1219)'
+                     }} />
                 <div className="text-left min-w-0">
                   <div className="font-extrabold truncate">{c.name}</div>
                   <div className="text-xs text-white/60 truncate">{c.description}</div>
@@ -51,4 +60,3 @@ export default function AllChallengesList({ items }) {
     </div>
   )
 }
-

@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react'
 import SectionHeader from '../components/SectionHeader'
 import StatTiles from '../components/StatTiles'
 import ActivityFeed from '../components/ActivityFeed'
-import NFTHoldings from '../components/NFTHoldings'
+import NFTHoldingsList from '../components/NFTHoldingsList'
 import Challenges from '../components/Challenges'
-import IncompleteChallenges from '../components/IncompleteChallenges'
 import Leaderboard from '../components/Leaderboard'
 import Hero from '../components/Hero'
-import { getNFTHoldings, getClaimableChallenges, claimChallenge, getIncompleteChallenges } from '../lib/mockApi'
+import { getNFTHoldings, getClaimableChallenges, claimChallenge } from '../lib/mockApi'
 
 export default function Dashboard() {
   const [address, setAddress] = useState('')
@@ -15,8 +14,6 @@ export default function Dashboard() {
   const [claimables, setClaimables] = useState([])
   const [backendOk, setBackendOk] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState('claimable')
-  const [incomplete, setIncomplete] = useState([])
 
   useEffect(() => {
     fetch('/health').then((r) => setBackendOk(r.ok)).catch(() => setBackendOk(false))
@@ -26,14 +23,12 @@ export default function Dashboard() {
     setAddress(addr)
     setLoading(true)
     try {
-      const [nfts, claims, inc] = await Promise.all([
+      const [nfts, claims] = await Promise.all([
         getNFTHoldings(addr),
-        getClaimableChallenges(addr),
-        getIncompleteChallenges(addr)
+        getClaimableChallenges(addr)
       ])
       setHoldings(nfts)
       setClaimables(claims)
-      setIncomplete(inc)
     } finally {
       setLoading(false)
     }
@@ -44,6 +39,8 @@ export default function Dashboard() {
     setHoldings((prev) => [minted, ...prev])
     setClaimables((prev) => prev.filter((c) => c.id !== challenge.id))
   }
+
+  const totalXp = holdings.reduce((sum, n) => sum + (n.xp || 0), 0)
 
   return (
     <>
@@ -58,15 +55,32 @@ export default function Dashboard() {
         <StatTiles />
       </section>
 
+      <section className="mb-6">
+        <SectionHeader title="Claimable Challenges" />
+        {address ? (
+          loading && claimables.length === 0 ? (
+            <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-4">
+              <div className="muted">Loading...</div>
+            </div>
+          ) : (
+            <Challenges claimables={claimables} onClaim={handleClaim} />
+          )
+        ) : (
+          <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-4">
+            <div className="muted">Enter an address above to see claimable challenges.</div>
+          </div>
+        )}
+      </section>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <section className="lg:col-span-2 w-full">
-          <SectionHeader title="NFT Holdings" />
+          <SectionHeader title="NFT Holdings" subtitle={`Total XP: ${totalXp.toLocaleString()}`}/>
           {loading && holdings.length === 0 ? (
             <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-4">
               <div className="muted">Loading...</div>
             </div>
           ) : (
-            <NFTHoldings items={holdings} />
+            <NFTHoldingsList items={holdings} />
           )}
           <div className="mt-6">
             <ActivityFeed />
@@ -74,34 +88,6 @@ export default function Dashboard() {
         </section>
 
         <aside className="lg:col-span-1 w-full space-y-4">
-          <SectionHeader title="Challenges" />
-          <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-1 mb-2 flex">
-            <button
-              className={`px-3 py-1.5 text-sm rounded-lg ${tab === 'claimable' ? 'bg-white/10 font-semibold' : 'text-white/70'}`}
-              onClick={() => setTab('claimable')}
-            >Claimable</button>
-            <button
-              className={`px-3 py-1.5 text-sm rounded-lg ${tab === 'incomplete' ? 'bg-white/10 font-semibold' : 'text-white/70'}`}
-              onClick={() => setTab('incomplete')}
-            >Incomplete</button>
-          </div>
-          {tab === 'claimable' ? (
-            loading && claimables.length === 0 ? (
-              <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-4">
-                <div className="muted">Loading...</div>
-              </div>
-            ) : (
-              <Challenges claimables={claimables} onClaim={handleClaim} />
-            )
-          ) : (
-            loading && incomplete.length === 0 ? (
-              <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-4">
-                <div className="muted">Loading...</div>
-              </div>
-            ) : (
-              <IncompleteChallenges items={incomplete} />
-            )
-          )}
           <section>
             <SectionHeader title="Leaderboard" />
             <Leaderboard />
@@ -111,4 +97,3 @@ export default function Dashboard() {
     </>
   )
 }
-

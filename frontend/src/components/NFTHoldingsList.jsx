@@ -6,6 +6,13 @@ const TIER_COLORS = {
   degen: '#8BDACC'
 }
 
+const TIER_BG = {
+  degen: 'conic-gradient(from 0deg, var(--primary), var(--accent), var(--highlight), var(--primary))',
+  gold: 'radial-gradient(circle at 30% 30%, #FFE680, #FFD34D 40%, #FFA500 100%)',
+  silver: 'radial-gradient(circle at 30% 30%, #F0F0F0, #C0C0C0 45%, #8F8F8F 100%)',
+  bronze: 'radial-gradient(circle at 30% 30%, #E6B17A, #CD7F32 45%, #8C5A22 100%)'
+}
+
 export default function NFTHoldingsList({ items }) {
   if (!items || items.length === 0) {
     return (
@@ -23,12 +30,7 @@ export default function NFTHoldingsList({ items }) {
             <div
               aria-hidden
               className="w-12 h-12 rounded-xl border border-white/10 flex-shrink-0"
-              style={{
-                background:
-                  nft.tier === 'degen'
-                    ? 'conic-gradient(from 0deg, var(--primary), var(--accent), var(--highlight), var(--primary))'
-                    : 'linear-gradient(180deg, #0e1620, #0b1219)'
-              }}
+              style={{ background: TIER_BG[nft.tier] || 'linear-gradient(180deg, #0e1620, #0b1219)' }}
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

@@ -46,7 +46,7 @@ export default function Challenges({ claimables, onClaim }) {
                 <div className="font-extrabold">{c.xp ?? 0}</div>
                 <div className="text-[11px] text-white/60">XP</div>
               </div>
-              <ClaimButton label={`Claim ${c.tier}`} onClick={() => onClaim(c)} />
+              <ClaimButton label="Claim" onClick={() => onClaim(c)} />
             </div>
           </div>
         </div>

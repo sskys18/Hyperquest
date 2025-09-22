@@ -56,7 +56,7 @@ export default function ChallengesPage() {
             <button
               className={`px-3 py-1.5 text-sm rounded-lg ${tab === 'holdings' ? 'bg-white/10 font-semibold' : 'text-white/70'}`}
               onClick={() => setTab('holdings')}
-            >Your NFTs</button>
+            >NFT Holdings</button>
           </div>
 
           {tab === 'claimable' ? (
@@ -93,7 +93,7 @@ export default function ChallengesPage() {
               <NFTHoldingsList items={holdings} />
             ) : (
               <div className="bg-gradient-to-b from-[#0F3A33] to-[#0A2A26] border border-white/10 rounded-xl p-4">
-                <div className="muted">Connect your wallet to view your NFTs.</div>
+                <div className="muted">Connect your wallet to view NFT holdings.</div>
               </div>
             )
           )}
