@@ -17,7 +17,7 @@ All quest definitions ship with the backend inside `src/schemas/quests.seed.json
   •  Express (REST)
   •  dotenv
   •  Zod for schema validation
-  •  Jest (optional, not yet wired)
+
   •  undici/axios for external data fetchers (axios included now)
 
 ⸻
@@ -102,7 +102,7 @@ hyperliquid-quest-mvp/
 │  ├─ hyperliquid/           // HTTP fetchers to HL APIs (unchanged)
 │  ├─ data/
 │  │  └─ normalize.ts        // request batching + normalization (stubs)
-│  ├─ utils/{env.ts, time.ts, math.ts}
+│  ├─ utils/{env.ts, math.ts}
 │  └─ app.ts
 ├─ src/schemas/quests.seed.json
 ├─ dist/
