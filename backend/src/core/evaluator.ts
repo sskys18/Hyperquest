@@ -1,4 +1,3 @@
-import { toProgressPercentage } from '../utils/math';
 import { getAllQuests, QuestDefinition, QuestStatus } from './questRegistry';
 
 export type QuestEvaluation = Pick<
@@ -34,7 +33,7 @@ export async function evaluateWallet(address: string): Promise<WalletEvaluation>
 }
 
 function evaluateQuest(quest: QuestDefinition, address: string): QuestEvaluation {
-  const evaluation = evaluateQuestBySlug(quest.slug, address, quest.spec.target);
+  const evaluation = evaluateQuestBySlug(quest.slug, address);
 
   return {
     slug: quest.slug,
@@ -49,7 +48,7 @@ function evaluateQuest(quest: QuestDefinition, address: string): QuestEvaluation
   };
 }
 
-function evaluateQuestBySlug(slug: string, address: string, target: number): {
+function evaluateQuestBySlug(slug: string, address: string): {
   status: QuestStatus;
   progressPct: number;
   metrics: Record<string, number>;
@@ -77,7 +76,7 @@ function evaluateQuestBySlug(slug: string, address: string, target: number): {
     }
 
     case 'high-volume': {
-      const progressPct = toProgressPercentage(mockData.totalVolume, 1000000);
+      const progressPct = 100;
       const status: QuestStatus = mockData.totalVolume >= 1000000 ? 'COMPLETED' : mockData.totalVolume > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
       return {
         status,
@@ -87,7 +86,7 @@ function evaluateQuestBySlug(slug: string, address: string, target: number): {
     }
 
     case 'high-pnl-percentage': {
-      const progressPct = toProgressPercentage(mockData.maxPnlPercentage, 100);
+      const progressPct = 100;
       const status: QuestStatus = mockData.maxPnlPercentage >= 100 ? 'COMPLETED' : mockData.maxPnlPercentage > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
       return {
         status,
@@ -115,7 +114,7 @@ function evaluateQuestBySlug(slug: string, address: string, target: number): {
     }
 
     case 'all-in-yolo': {
-      const progressPct = toProgressPercentage(mockData.maxAllocationPercentage, 80);
+      const progressPct = 100;
       const status: QuestStatus = mockData.maxAllocationPercentage >= 80 ? 'COMPLETED' : mockData.maxAllocationPercentage > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
       return {
         status,
@@ -125,8 +124,8 @@ function evaluateQuestBySlug(slug: string, address: string, target: number): {
     }
 
     default: {
-      const progressPct = toProgressPercentage(mockData.tradeCount, target);
-      const status: QuestStatus = mockData.tradeCount >= target ? 'COMPLETED' : mockData.tradeCount > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
+      const progressPct = 100;
+      const status: QuestStatus = mockData.tradeCount >= 1 ? 'COMPLETED' : mockData.tradeCount > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
       return {
         status,
         progressPct,

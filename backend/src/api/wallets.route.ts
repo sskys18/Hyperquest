@@ -8,7 +8,7 @@ interface WalletParams {
   address: string;
 }
 
-walletsRouter.get('/:address/summary', async (req, res, next) => {
+walletsRouter.get('/:address', async (req, res, next) => {
   try {
     const { address } = req.params as WalletParams;
 
