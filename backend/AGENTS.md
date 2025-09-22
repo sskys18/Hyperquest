@@ -1,199 +1,82 @@
-HyperQuest Backend (MVP) — TypeScript Repo Design
+Hyperliquid Quest Backend (MVP) — “No Period” Design
 
-A minimal backend where quests are pre-registered, users submit a wallet address, and the API returns which quests are completed, current progress %, and simple leaderboards. NFT minting is handled by another service (out of scope).
+You asked to remove all period parameters and evaluate using only Wallet and Quest data models. This blueprint keeps the backend tiny: quests are pre-registered; given a wallet, we compute completion and progress on the fly (stateless), and provide a simple points leaderboard derived from completed quests.
 
 ⸻
 
-1) MVP Goals
-	•	Pre-register quests in code (seed file) using a tiny JSON spec.
-	•	Stateless evaluation on demand: given a wallet, fetch activity from Hyperliquid, map to quest criteria, compute progress & completion.
-	•	Persist lightweight caches (SQLite) for faster repeat queries and to power leaderboards (by points, notional volume, PnL, count of quests).
-	•	Small surface area: a few routes, one worker (optional cron), one DB.
-
-Non-Goals (MVP)
-	•	No auth/roles, no user accounts.
-	•	No webhooks, no background streaming.
-	•	No NFT minting here.
+1) Core Principles
+	•	No client period. The server never accepts 7d/30d etc.
+	•	Evaluation uses only Wallet and Quest.
+No Activity or Progress tables. Activity is fetched from data sources at request time and never persisted (beyond an optional in-memory cache).
+	•	Quests define their own time semantics (if any) inside the quest spec (e.g., window: "all_time" or an absolute range). Clients don’t pass time.
 
 ⸻
 
 2) Tech Stack
 	•	Node.js 20+, TypeScript
-	•	Express for REST (tiny, familiar)
-	•	Prisma + SQLite (file DB)
-	•	dotenv for config
-	•	Jest for tests
-	•	axios (or undici) for Hyperliquid/partner HTTP calls
-	•	node-cron (optional) to refresh leaderboards periodically
+	•	Express (REST)
+	•	Prisma + SQLite (only to store Wallet registry and Quest registry)
+	•	dotenv
+	•	Jest
+	•	undici/axios for HTTP to data sources
 
 ⸻
 
-3) High-Level Flow
+3) Data Model (Prisma)
 
-Client → GET /wallets/:address/summary
-   ↳ If cache is stale or missing:
-       1) Pull recent activity (trades, PnL, liquidations, etc.) from Hyperliquid APIs
-       2) Normalize and cache minimal rows
-       3) Evaluate every pre-registered quest against normalized data
-       4) Store progress rows for the wallet
-   ↳ Return: list of quests with status + progress%, and a short wallet summary
-
-Client → GET /leaderboards?type=points&period=7d
-   ↳ Returns a simple ranking over cached aggregates (recomputed hourly by cron or on-demand)
-
-
-⸻
-
-4) API Surface (MVP)
-
-Base path: /v1
-	•	GET /quests → list pre-registered quests (slug, title, description, criteria summary)
-	•	GET /quests/:slug → single quest detail
-	•	GET /wallets/:address/summary?period=7d|30d
-Returns:
-	•	wallet summary (volume, pnl, liquidations, lastSyncAt)
-	•	quests[] with slug, title, status: "COMPLETED"|"IN_PROGRESS"|"NOT_STARTED", progressPct, metrics
-	•	POST /wallets/:address/sync
-Forces refresh (pull + evaluate) now; returns same payload as /summary
-	•	GET /leaderboards?type=points|volume|pnl&period=7d|30d&limit=100
-Returns simple ranking with rank, wallet, value, completedQuests
-
-Example response:
-
-{
-  "wallet": "0xabc...123",
-  "period": "7d",
-  "lastSyncAt": "2025-09-22T03:00:12Z",
-  "metrics": { "perpVolumeUsd": 15234.12, "netPnlUsd": 87.4, "liquidations": 0 },
-  "quests": [
-    {
-      "slug": "first-trade",
-      "title": "Execute Your First Trade",
-      "status": "COMPLETED",
-      "progressPct": 100,
-      "metrics": { "trades": 3, "firstTradeAt": "2025-09-20T02:11:00Z" }
-    },
-    {
-      "slug": "weekly-10k-volume",
-      "title": "Trade $10k Notional (7d)",
-      "status": "COMPLETED",
-      "progressPct": 100,
-      "metrics": { "perpVolumeUsd7d": 15234.12 }
-    },
-    {
-      "slug": "pnl-positive",
-      "title": "Finish Week Positive",
-      "status": "IN_PROGRESS",
-      "progressPct": 64,
-      "metrics": { "netPnlUsd7d": 87.4, "target": 135.0 }
-    }
-  ]
-}
-
-
-⸻
-
-5) Project Structure
-
-backend/
-├─ src/
-│  ├─ api/
-│  │  ├─ quests.route.ts
-│  │  ├─ wallets.route.ts
-│  │  ├─ leaderboards.route.ts
-│  │  └─ server.ts
-│  ├─ core/
-│  │  ├─ quests.registry.ts        // in-memory registry from seed JSON
-│  │  ├─ evaluate.ts               // core evaluation funcs
-│  │  └─ progress.ts               // progress % helpers
-│  ├─ data/
-│  │  ├─ hl.client.ts              // Hyperliquid fetchers
-│  │  └─ normalize.ts              // shape raw → normalized Activity
-│  ├─ jobs/
-│  │  ├─ refresh.wallet.ts         // on-demand sync
-│  │  └─ recompute.leaderboards.ts // cron (optional)
-│  ├─ db/
-│  │  └─ prisma.ts
-│  ├─ schemas/
-│  │  └─ quests.seed.json          // pre-registered quests
-│  ├─ utils/
-│  │  ├─ env.ts
-│  │  ├─ time.ts
-│  │  └─ math.ts
-│  └─ app.ts
-├─ prisma/
-│  ├─ schema.prisma
-│  └─ migrations/
-├─ test/
-│  ├─ evaluate.test.ts
-│  └─ routes.test.ts
-├─ .env.example
-├─ package.json
-├─ tsconfig.json
-├─ Dockerfile
-└─ README.md
-
-
-⸻
-
-6) Data Model (Prisma, minimal)
+Only Wallet and Quest. Nothing else persisted.
 
 // prisma/schema.prisma
 datasource db { provider = "sqlite"; url = "file:./dev.db" }
 generator client { provider = "prisma-client-js" }
 
 model Wallet {
-  id           String   @id @default(cuid())
-  address      String   @unique
-  lastSyncAt   DateTime?
-  // cached aggregates for leaderboards
-  volume7dUsd  Float    @default(0)
-  volume30dUsd Float    @default(0)
-  pnl7dUsd     Float    @default(0)
-  pnl30dUsd    Float    @default(0)
-  points7d     Int      @default(0)
-  points30d    Int      @default(0)
-  progresses   Progress[]
-  activities   Activity[]
+  // Known wallets (discovered when users first query or registered via POST)
+  address    String   @id
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Quest {
-  slug         String   @id
-  title        String
-  description  String
-  // serialized tiny JSON spec (from quests.seed.json)
-  spec         Json
-  // static point value used in leaderboards
-  points       Int      @default(10)
-  // optional tag for grouping
-  tag          String? 
-  progresses   Progress[]
-}
-
-model Progress {
-  id           String   @id @default(cuid())
-  walletId     String
-  questSlug    String
-  wallet       Wallet   @relation(fields: [walletId], references: [id])
-  quest        Quest    @relation(fields: [questSlug], references: [slug])
-  status       String   // COMPLETED | IN_PROGRESS | NOT_STARTED
-  progressPct  Int      @default(0) // 0..100
-  metrics      Json?    // computed numbers used for UI
-  updatedAt    DateTime @default(now())
-  @@unique([walletId, questSlug])
+  slug        String   @id
+  title       String
+  description String
+  points      Int      @default(10)
+  // Minimal spec, including any time semantics the quest needs
+  spec        Json     // see “Quest Spec” below
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 
 ⸻
 
-7) Quest Spec (tiny, MVP)
+4) Quest Spec (tiny and explicit)
 
-Keep it very small and explicit—two primitive rule types:
-	•	count: count events filtered by kind (e.g., TRADE) and optional window
-	•	sum: sum a numeric field (e.g., notionalUsd, pnlUsd) with optional window
+Two primitive rule types:
+	•	count: count events (e.g., trades, liquidations)
+	•	sum: sum numeric fields (e.g., notional, pnl)
 
-// src/schemas/quests.seed.json (example)
+Each quest owns its time semantics:
+	•	"window": "all_time": evaluate using all available history
+	•	"window": { "type": "fixed", "start": "...Z", "end": "...Z" }: evaluate against an absolute window (e.g., monthly campaign)
+	•	You can omit window → treated as "all_time".
+
+// src/schemas/quests.seed.json
 [
+  {
+    "slug": "first-deposit",
+    "title": "Make Your First Deposit",
+    "description": "Make your first deposit on Hyperliquid.",
+    "points": 5,
+    "spec": {
+      "rules": [
+        { "type": "count", "kind": "TRANSFER", "gte": 1, "window": "all_time" }
+      ],
+      "target": 1,
+      "scoringMetric": "count"
+    }
+  },
   {
     "slug": "first-trade",
     "title": "Execute Your First Trade",
@@ -201,93 +84,253 @@ Keep it very small and explicit—two primitive rule types:
     "points": 5,
     "spec": {
       "rules": [
-        { "type": "count", "kind": "TRADE", "gte": 1, "window": "all" }
+        { "type": "count", "kind": "TRADE", "gte": 1, "window": "all_time" }
       ],
-      "target": 1, "scoringMetric": "count"
+      "target": 1,
+      "scoringMetric": "count"
     }
   },
   {
-    "slug": "weekly-10k-volume",
-    "title": "Trade $10k Notional (7d)",
-    "description": "Accumulate $10,000 notional volume over the last 7 days.",
-    "points": 15,
+    "slug": "high-volume",
+    "title": "Achieve Over 1M Volume",
+    "description": "Achieve over 1M in total trading volume.",
+    "points": 10,
     "spec": {
       "rules": [
-        { "type": "sum", "field": "notionalUsd", "kind": "TRADE", "gte": 10000, "window": "7d" }
+        { "type": "sum", "field": "notionalUsd", "kind": "TRADE", "gte": 1000000, "window": "all_time" }
       ],
-      "target": 10000, "scoringMetric": "sum:notionalUsd"
+      "target": 1000000,
+      "scoringMetric": "sum:notionalUsd"
     }
   },
   {
-    "slug": "finish-week-positive",
-    "title": "Finish Week Positive",
-    "description": "Have positive net PnL over the last 7 days.",
+    "slug": "large-liquidation",
+    "title": "Get Liquidated",
+    "description": "Get liquidated at least once.",
     "points": 20,
     "spec": {
       "rules": [
-        { "type": "sum", "field": "pnlUsd", "kind": "TRADE", "gte": 0.01, "window": "7d" }
+        { "type": "count", "kind": "LIQUIDATION", "gte": 1, "window": "all_time" }
       ],
-      "target": 0.01, "scoringMetric": "sum:pnlUsd"
+      "target": 1,
+      "scoringMetric": "count"
     }
   }
 ]
 
-Progress calculation (MVP):
-	•	For count quests: progressPct = min(100, floor(100 * currentCount / target))
-	•	For sum quests: progressPct = min(100, floor(100 * currentSum / target))
-	•	Status: COMPLETED if threshold met; IN_PROGRESS if >0 but <100; else NOT_STARTED
+Progress calculation (server-side, stateless):
+	•	count: progressPct = min(100, floor(100 * count / target))
+	•	sum: progressPct = min(100, floor(100 * sum / target))
+	•	status: COMPLETED if threshold met; IN_PROGRESS if >0 and <100; else NOT_STARTED.
 
 ⸻
 
-8) Evaluation Logic (concise)
+5) Evaluation Logic (stateless)
 
-evaluate(wallet, period)
-	1.	Pull activities for period (e.g., last 7 or 30 days) from Hyperliquid REST (one or two endpoints you can hit by symbol or by address).
-	2.	Normalize to Activity[] (only fields we need).
-	3.	For each quest in registry:
-	•	Apply filter by kind and window (window is either all, 7d, 30d relative to now).
-	•	Compute either count or sum(field).
-	•	Compare with gte threshold → determine status, progressPct, and small metrics blob.
-	•	Upsert Progress row.
-	4.	Update wallet aggregates (volume7d, pnl7d, etc.) for leaderboards.
-	5.	Touch lastSyncAt.
+// Pseudocode
+evaluateWallet(address: string): {
+  wallet: string
+  quests: Array<{ slug, title, status, progressPct, metrics }>
+  summary: { totalPoints: number }
+} {
+  // 1) Load quests from DB (pre-registered at boot)
+  const quests = db.quest.findMany()
 
-No background stream in MVP: we re-pull on request or via a tiny cron.
+  // 2) For each distinct "kind" and time window across all quests,
+  //    batch-fetch activity directly from Hyperliquid (REST/WebSocket snapshot).
+  //    Keep in memory only; do NOT persist.
+  //    - If any rule is "all_time", either:
+  //        a) use a data source endpoint that returns lifetime aggregates, or
+  //        b) page through until done (MVP: set a sane cap and document it).
+  const activityIndex = fetchAndNormalize(address, dedupeRequestedWindows(quests))
+
+  // 3) Evaluate each quest purely from activityIndex
+  const results = quests.map(q => compute(q.spec, activityIndex))
+
+  // 4) Sum completed quest points for leaderboard
+  const totalPoints = results
+    .filter(r => r.status === "COMPLETED")
+    .map(r => r.points)
+    .reduce((a,b)=>a+b, 0)
+
+  return { wallet: address, quests: decorate(results), summary: { totalPoints } }
+}
+
+Note on “all_time”:
+For MVP, prefer endpoints that return lifetime totals per wallet/symbol to avoid deep pagination. Where not possible, set a fetch horizon and document it (e.g., “we scan up to N pages per request”); the evaluation remains stateless.
 
 ⸻
 
-9) Leaderboards (simple)
-	•	points: sum of quest points for quests with status = COMPLETED in the relevant window
-	•	volume: sum of notionalUsd over the window
-	•	pnl: sum of pnlUsd over the window
+5.1) Quest Evaluation Examples
 
-Implementation options:
-	•	On demand: When /leaderboards is called, compute rankings from cached wallet aggregates for the selected period.
-	•	Cron: node-cron job every hour to recompute and cache a top-N list.
+This section details how the stateless `evaluateWallet` function would process each of the quests defined in `src/schemas/quests.seed.json`.
 
-Response example:
+*   **Quest: `first-deposit`**
+    *   **Title:** Make Your First Deposit
+    *   **Logic:** The evaluator will fetch all `TRANSFER` activities for the user's wallet. It will then apply the `count` rule from the quest's `spec`.
+    *   **Evaluation:**
+        *   The `rules` array specifies `{ "type": "count", "kind": "TRANSFER", "gte": 1 }`.
+        *   The evaluator will count the number of `TRANSFER` events.
+        *   If the count is `>= 1`, the quest is `COMPLETED`.
+        *   `progressPct` will be `100` if completed, otherwise `0`.
+
+*   **Quest: `first-trade`**
+    *   **Title:** Execute Your First Trade
+    *   **Logic:** The evaluator will fetch all `TRADE` activities for the user's wallet.
+    *   **Evaluation:**
+        *   The `rules` array specifies `{ "type": "count", "kind": "TRADE", "gte": 1 }`.
+        *   The evaluator will count the number of `TRADE` events.
+        *   If the count is `>= 1`, the quest is `COMPLETED`.
+        *   `progressPct` will be `100` if completed, otherwise `0`.
+
+*   **Quest: `high-volume`**
+    *   **Title:** Achieve Over 1M Volume
+    *   **Logic:** The evaluator will fetch all `TRADE` activities for the user's wallet within the `all_time` window.
+    *   **Evaluation:**
+        *   The `rules` array specifies `{ "type": "sum", "field": "notionalUsd", "kind": "TRADE", "gte": 1000000 }`.
+        *   The evaluator will sum the `notionalUsd` field of all `TRADE` events.
+        *   If the sum is `>= 1000000`, the quest is `COMPLETED`.
+        *   `progressPct` will be calculated as `min(100, floor(100 * sum_of_notionalUsd / 1000000))`.
+
+*   **Quest: `large-liquidation`**
+    *   **Title:** Get Liquidated
+    *   **Logic:** The evaluator will fetch all `LIQUIDATION` activities for the user's wallet.
+    *   **Evaluation:**
+        *   The `rules` array specifies `{ "type": "count", "kind": "LIQUIDATION", "gte": 1 }`.
+        *   The evaluator will count the number of `LIQUIDATION` events.
+        *   If the count is `>= 1`, the quest is `COMPLETED`.
+        *   `progressPct` will be `100` if completed, otherwise `0`.
+
+⸻
+
+5.2) Unsupported Quest Evaluation Logic
+
+The current `spec` is designed for simplicity and only supports a limited set of rules (`count` and `sum`). The following quests from `QUESTS.md` require more complex logic and are not supported by the current `spec`. This section describes the logic that would be needed to evaluate them.
+
+*   **Quest: `high_pnl_percentage`**
+    *   **Description:** Achieve over 100% PnL on a single trade.
+    *   **Required Data:** A list of all the user's trades, with the PnL percentage for each trade.
+    *   **Logic:** Iterate through all trades and check if any of them have a `pnl_percentage` greater than or equal to 100.
+    *   **Proposed `spec` extension:** A new rule type, `max`, that can find the maximum value of a field in a list of activities.
+
+*   **Quest: `buying_the_dip`**
+    *   **Description:** Average down a losing position at least 3 times.
+    *   **Required Data:** A history of the user's positions and trades, with enough detail to identify when a user is adding to a losing position.
+    *   **Logic:** For each position, track the entry price and the price of subsequent trades. If the user makes 3 or more trades at a price lower than the original entry price while the position is at a loss, the quest is complete.
+    *   **Proposed `spec` extension:** This would require a more stateful and complex rule type, perhaps a `sequence` rule that can detect a pattern of events.
+
+*   **Quest: `all_in_yolo`**
+    *   **Description:** Allocate 80%+ of total equity into a single position.
+    *   **Required Data:** The user's account equity at the time of opening a position, and the notional value of that position.
+    *   **Logic:** For each new position, calculate the ratio of the position's notional value to the user's total account equity at that time. If the ratio is `>= 0.8`, the quest is complete.
+    *   **Proposed `spec` extension:** A new rule type, `ratio`, that can calculate the ratio of two values, one of which might be from the user's account state.
+
+*   **Quest: Cross-Ecosystem Quests (`eco_explorer`, `liquidity_provider`, etc.)**
+    *   **Description:** These quests involve interacting with other protocols in the Hyperliquid ecosystem.
+    *   **Required Data:** Data from the other protocols' APIs (e.g., Kinetiq, Hyperps). This would require building new data fetchers for each protocol.
+    *   **Logic:** The logic would be specific to each quest. For example, for `liquidity_provider`, we would need to check if the user has provided liquidity of a certain value to a specific vault on another protocol.
+    *   **Proposed `spec` extension:** The `spec` would need to be extended to support new `kind`s of activities for each external protocol, and the data fetching logic would need to be extended to support these new data sources.
+
+⸻
+
+6) API Surface (no period parameter)
+
+Base path: /v1
+	•	GET /quests
+Returns all pre-registered quests (slug, title, description, points, redacted spec summary).
+	•	POST /wallets
+Body { address }. Registers a wallet in the DB (idempotent). Useful for leaderboards.
+	•	GET /wallets/:address/summary
+Runs stateless evaluation now and returns:
 
 {
-  "type": "points",
-  "period": "7d",
-  "updatedAt": "2025-09-22T03:00:00Z",
-  "entries": [
-    { "rank": 1, "wallet": "0xabc...1", "value": 65, "completedQuests": 6 },
-    { "rank": 2, "wallet": "0xdef...2", "value": 55, "completedQuests": 5 }
+  "wallet": "0xabc...123",
+  "summary": { "totalPoints": 30 },
+  "quests": [
+    {
+      "slug": "first-trade",
+      "title": "Execute Your First Trade",
+      "status": "COMPLETED",
+      "progressPct": 100,
+      "metrics": { "trades": 3, "firstTradeAt": "2025-09-20T02:11:00Z" },
+      "points": 5
+    },
+    {
+      "slug": "lifetime-100k-volume",
+      "title": "Accumulate $100k Notional (All-Time)",
+      "status": "IN_PROGRESS",
+      "progressPct": 41,
+      "metrics": { "sum:notionalUsd": 41032.55 },
+      "points": 25
+    }
   ]
 }
 
 
+	•	GET /leaderboards?type=points&limit=100
+Evaluates each known wallet (from Wallet table) on demand, sums completed quest points, and returns a points leaderboard.
+Response:
+
+{
+  "type": "points",
+  "entries": [
+    { "rank": 1, "wallet": "0xAAA...1", "points": 75 },
+    { "rank": 2, "wallet": "0xBBB...2", "points": 65 }
+  ]
+}
+
+
+
+Leaderboard is computed without any stored progress: it iterates over registered wallets and invokes the same stateless evaluator. For scale, you can add a memory cache later, but evaluation will still rely only on Wallet + Quest.
+
 ⸻
 
-10) Minimal Interfaces (for core code)
+7) Folder Structure
 
-// src/core/quests.registry.ts
+hyperliquid-quest-mvp/
+├─ src/
+│  ├─ api/
+│  │  ├─ quests.route.ts
+│  │  ├─ wallets.route.ts
+│  │  └─ leaderboards.route.ts
+│  ├─ core/
+│  │  ├─ evaluator.ts        // pure stateless evaluator
+│  │  ├─ rules.ts            // count/sum rule executors
+│  │  └─ spec.ts             // types + validators
+│  ├─ hyperliquid/          // HTTP fetchers to HL APIs
+│  │  ├─ exchangeClient.ts   // exchange API client
+│  │  ├─ helpers.ts          // utility functions
+│  │  ├─ index.ts            // main exports
+│  │  ├─ infoClient.ts       // info API client
+│  │  └─ types.ts            // type definitions
+│  ├─ data/
+│  │  └─ normalize.ts        // raw → { kind, ts, notionalUsd?, pnlUsd? }
+│  ├─ db/prisma.ts
+│  ├─ bootstrap/seedQuests.ts
+│  ├─ utils/{env.ts, time.ts, math.ts}
+│  └─ app.ts
+├─ prisma/{schema.prisma,migrations/}
+├─ src/schemas/quests.seed.json
+├─ .env.example
+├─ package.json
+├─ tsconfig.json
+└─ README.md
+
+
+⸻
+
+8) Minimal Types
+
+// src/core/spec.ts
+export type WindowSpec =
+  | "all_time"
+  | { type: "fixed"; start: string; end: string };
+
 export type RuleCount = {
   type: "count";
-  kind: "TRADE" | "FUNDING" | "LIQUIDATION" | "TRANSFER";
+  kind: "TRADE" | "LIQUIDATION" | "FUNDING" | "TRANSFER";
   gte: number;
-  window: "all" | "7d" | "30d";
+  window?: WindowSpec; // default "all_time"
 };
 
 export type RuleSum = {
@@ -295,18 +338,18 @@ export type RuleSum = {
   field: "notionalUsd" | "pnlUsd";
   kind: "TRADE";
   gte: number;
-  window: "7d" | "30d";
+  window?: WindowSpec; // default "all_time"
 };
 
 export type QuestSpec = {
   rules: (RuleCount | RuleSum)[];
   target: number;
-  scoringMetric: string; // "count" or "sum:<field>"
+  scoringMetric: "count" | `sum:${"notionalUsd" | "pnlUsd"}`;
 };
 
 // src/data/normalize.ts
 export type Activity = {
-  kind: "TRADE" | "FUNDING" | "LIQUIDATION" | "TRANSFER";
+  kind: "TRADE" | "LIQUIDATION" | "FUNDING" | "TRANSFER";
   ts: Date;
   notionalUsd?: number;
   pnlUsd?: number;
@@ -316,51 +359,40 @@ export type Activity = {
 
 ⸻
 
-11) Example Route Behaviors
-	•	GET /v1/wallets/:address/summary?period=7d
-	•	If lastSyncAt older than 10 minutes (configurable), call refresh.wallet.ts.
-	•	Fetch cached Progress for all quests + wallet aggregates; return JSON.
-	•	POST /v1/wallets/:address/sync
-	•	Force refresh.wallet.ts (ignores staleness).
-	•	Returns the same payload as /summary.
-	•	GET /v1/leaderboards?type=points&period=7d&limit=100
-	•	Read precomputed ranking (or compute now).
-	•	Return list of {rank, wallet, value, completedQuests}.
+9) Leaderboard Logic (points only)
 
-⸻
-
-12) Configuration
-
-.env.example
-
-PORT=8080
-NODE_ENV=development
-HL_API_BASE=https://api.hyperliquid.xyz   # example; adjust to real
-SYNC_STALE_SECONDS=600
-LEADERBOARD_TOP_N=100
+// Pseudocode
+getPointsLeaderboard(limit: number) {
+  const wallets = db.wallet.findMany()
+  const scores = []
+  for (const w of wallets) {
+    const res = evaluateWallet(w.address) // stateless
+    scores.push({ wallet: w.address,
+                  points: res.quests
+                    .filter(q => q.status === "COMPLETED")
+                    .reduce((s, q) => s + q.points, 0) })
+  }
+  return scores.sort((a,b)=>b.points-a.points).slice(0, limit)
+}
 
 
 ⸻
 
-13) Testing (what to cover)
-	•	Unit:
-	•	evaluate.ts for count/sum rules, windows, progress%.
-	•	normalize.ts given a small HL payload → Activity[].
-	•	Integration:
-	•	/wallets/:address/summary with mocked HL client (fixtures).
-	•	Leaderboard computation given seeded data.
+10) How to Ship Fast
+	1.	Create Prisma schema (just Wallet, Quest).
+	2.	Implement seedQuests.ts to upsert quests from quests.seed.json.
+	3.	Write evaluator.ts that:
+	•	Collects required windows from quest specs
+	•	Fetches & normalizes activities for each window
+	•	Applies rules and computes progress/status
+	4.	Routes:
+	•	GET /quests
+	•	POST /wallets (register)
+	•	GET /wallets/:address/summary
+	•	GET /leaderboards?type=points&limit=100
 
-⸻
-
-14) How to Build It Fast
-	1.	Scaffold Prisma + SQLite; add models above and migrations.
-	2.	Implement quests.seed.json and a bootstrap that upserts Quest rows on server start.
-	3.	Implement hl.client.ts with 1–2 fetchers and pure normalize.ts.
-	4.	Implement evaluate.ts using the tiny rule set; write unit tests for it.
-	5.	Wire /summary → refresh if stale → read Progress + aggregates.
-	6.	Add a simple hourly cron to recompute leaderboard aggregates (optional).
-
-This keeps the system tiny while delivering:
-	•	pre-registered quests,
-	•	per-wallet progress and completion,
-	•	simple 7d/30d leaderboards.
+This satisfies:
+	•	Pre-registered quests
+	•	Wallet-only input
+	•	Stateless evaluation with no period param
+	•	Simple leaderboard using completed quest points only
