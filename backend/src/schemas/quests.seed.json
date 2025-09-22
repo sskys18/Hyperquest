@@ -1,0 +1,106 @@
+[
+  {
+    "slug": "first-deposit",
+    "title": "First Step",
+    "shortDescription": "Make your first deposit.",
+    "longDescription": "Make your first USDC deposits on Hyperliquid to start your trading journey.",
+    "points": 5,
+    "rank": "Bronze"
+  },
+  {
+    "slug": "first-trade",
+    "title": "Rookie Trader",
+    "shortDescription": "Complete your first trade.",
+    "longDescription": "Complete your very first order on Hyperliquid and get a taste of the action.",
+    "points": 5,
+    "rank": "Bronze"
+  },
+  {
+    "slug": "high-volume",
+    "title": "Million Dollar Trader",
+    "shortDescription": "Trade over 1M in volume.",
+    "longDescription": "Achieve over 1,000,000 USD in total trading volume.",
+    "points": 10,
+    "rank": "Silver"
+  },
+  {
+    "slug": "high-pnl-percentage",
+    "title": "Profit Pro",
+    "shortDescription": "Achieve 100% PnL on a trade.",
+    "longDescription": "Achieve over 100% Profit and Loss on a single trade.",
+    "points": 10,
+    "rank": "Silver"
+  },
+  {
+    "slug": "large-liquidation",
+    "title": "Whale Down",
+    "shortDescription": "Get liquidated on a large position.",
+    "longDescription": "Get liquidated on a position worth over $10,000.",
+    "points": 20,
+    "rank": "Gold"
+  },
+  {
+    "slug": "averaging-down-artisan",
+    "title": "Averaging Down Artisan",
+    "shortDescription": "Master the art of averaging down.",
+    "longDescription": "When a position is down by at least 20%, average down by increasing your position size by at least 50% over 3 separate trades.",
+    "points": 20,
+    "rank": "Gold"
+  },
+  {
+    "slug": "all-in-yolo",
+    "title": "All-In Champion",
+    "shortDescription": "Go all-in on a single position.",
+    "longDescription": "Allocate 80% or more of your total equity into a single position.",
+    "points": 50,
+    "rank": "Degen"
+  },
+  {
+    "slug": "eco-explorer",
+    "title": "Explorer",
+    "shortDescription": "Interact with Hyperliquid and a partner protocol.",
+    "longDescription": "Interact with Hyperliquid DEX and at least one ecosystem DeFi protocol (e.g., Kinetiq).",
+    "points": 10,
+    "rank": "Silver"
+  },
+  {
+    "slug": "liquidity-provider",
+    "title": "Liquidity Farmer",
+    "shortDescription": "Provide liquidity on an ecosystem protocol.",
+    "longDescription": "Provide at least $1,000 of liquidity to a vault on an ecosystem protocol (e.g., Kinetiq, Hyperps).",
+    "points": 10,
+    "rank": "Silver"
+  },
+  {
+    "slug": "staking-supporter",
+    "title": "Ecosystem Staker",
+    "shortDescription": "Stake tokens on a partner protocol.",
+    "longDescription": "Stake at least $1,000 worth of HLP or other tokens on a partner protocol.",
+    "points": 10,
+    "rank": "Silver"
+  },
+  {
+    "slug": "eco-borrower",
+    "title": "DeFi Borrower",
+    "shortDescription": "Borrow from a lending protocol in the ecosystem.",
+    "longDescription": "Borrow at least $1,000 of assets from a lending protocol within the Hyperliquid ecosystem.",
+    "points": 20,
+    "rank": "Gold"
+  },
+  {
+    "slug": "yield-aggregator-user",
+    "title": "Yield Optimizer",
+    "shortDescription": "Use a yield aggregator in the ecosystem.",
+    "longDescription": "Deposit at least $1,000 of assets into a yield aggregator that uses Hyperliquid.",
+    "points": 20,
+    "rank": "Gold"
+  },
+  {
+    "slug": "hip3-market-deployer",
+    "title": "HIP3 Market Architect",
+    "shortDescription": "Deploy a new perp market.",
+    "longDescription": "Deploy a new perpetual market on Hyperliquid via HIP-3.",
+    "points": 50,
+    "rank": "Degen"
+  }
+]

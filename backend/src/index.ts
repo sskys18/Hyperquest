@@ -1,25 +1,20 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import { app } from './app';
+const PORT = Number.parseInt(process.env.PORT ?? '4000', 10);
 
-dotenv.config();
-
-const app = express();
-const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 4000;
-
-app.use(cors());
-app.use(express.json());
-
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ ok: true, service: 'backend', time: new Date().toISOString() });
+const server = app.listen(PORT, () => {
+  console.log(`Hyperliquid Quest backend listening on http://localhost:${PORT}`);
 });
 
-app.get('/api/hello', (_req: Request, res: Response) => {
-  res.json({ message: 'Hello from Express backend!' });
-});
+const shutdownSignals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
 
-app.listen(PORT, () => {
-  console.log(`Backend listening on http://localhost:${PORT}`);
-});
-
-export default app;
+for (const signal of shutdownSignals) {
+  process.once(signal, async () => {
+    console.log(`Received ${signal}, shutting down gracefully...`);
+    server.close((error) => {
+      if (error) {
+        console.error('Error closing HTTP server', error);
+      }
+      process.exit(error ? 1 : 0);
+    });
+  });
+}
